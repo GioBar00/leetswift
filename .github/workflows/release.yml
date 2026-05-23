@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'           # stable:     v1.2.3
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'          # prerelease: v1.2.3-beta.1
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Generate changelog for this release
+        id: changelog
+        run: |
+          TAG="${{ github.ref_name }}"
+
+          # Determine if this is a prerelease
+          if [[ "$TAG" == *"-"* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Generate changelog body for this tag only (since last tag)
+          git-cliff \
+            --config .github/cliff.toml \
+            --latest \
+            --strip all \
+            --output release_notes.md
+
+          echo "Generated release notes:"
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: release_notes.md
+          prerelease: ${{ steps.changelog.outputs.is_prerelease }}
+          draft: false

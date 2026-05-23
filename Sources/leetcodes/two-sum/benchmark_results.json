@@ -1,0 +1,22 @@
+{
+  "results" : [
+    {
+      "memoryBytesUsed" : 4080096,
+      "averageTimeMicroseconds" : 6.65,
+      "inputSize" : 10
+    },
+    {
+      "memoryBytesUsed" : 4080096,
+      "averageTimeMicroseconds" : 576.5166,
+      "inputSize" : 100
+    },
+    {
+      "memoryBytesUsed" : 4080096,
+      "averageTimeMicroseconds" : 36970.058399999994,
+      "inputSize" : 1000
+    }
+  ],
+  "timestamp" : "2026-05-23T15:12:06Z",
+  "challenge" : "two-sum",
+  "solution" : "SolutionV2 (Brute Force)"
+}

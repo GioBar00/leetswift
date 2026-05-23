@@ -1,0 +1,102 @@
+name: Promote Stable Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Promote Prerelease to Stable
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Check and Promote
+        id: check_release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Get latest tag in history
+          LATEST_TAG=$(git tag --sort=-version:refname | head -n 1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "ℹ️ No tags found in repository. Skipping automatic promotion."
+            exit 0
+          fi
+          echo "Latest tag: $LATEST_TAG"
+
+          # Check if the latest tag is a prerelease (contains a dash)
+          if [[ "$LATEST_TAG" == *"-"* ]]; then
+            # Strip the prerelease suffix to get the stable tag (e.g. v1.1.0-rc.1 -> v1.1.0)
+            STABLE_TAG="${LATEST_TAG%%-*}"
+            echo "🎯 Target stable release tag: $STABLE_TAG"
+
+            # Check if this stable tag already exists
+            if git rev-parse "$STABLE_TAG" >/dev/null 2>&1; then
+              echo "ℹ️ Stable tag $STABLE_TAG already exists. Promotion already completed. Skipping."
+              exit 0
+            fi
+
+            echo "🚀 Promoting $LATEST_TAG to stable $STABLE_TAG!"
+            echo "should_promote=true" >> $GITHUB_OUTPUT
+            echo "stable_tag=$STABLE_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️ Latest tag $LATEST_TAG is already a stable release. No promotion needed."
+            exit 0
+          fi
+
+      - name: Install git-cliff
+        if: steps.check_release.outputs.should_promote == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Update CHANGELOG.md
+        if: steps.check_release.outputs.should_promote == 'true'
+        run: |
+          STABLE_TAG="${{ steps.check_release.outputs.stable_tag }}"
+          
+          # Prepend only the new release section on top of the existing CHANGELOG.md
+          git-cliff \
+            --config .github/cliff.toml \
+            --tag "$STABLE_TAG" \
+            --prepend CHANGELOG.md
+
+      - name: Commit and Push Release to main
+        if: steps.check_release.outputs.should_promote == 'true'
+        run: |
+          STABLE_TAG="${{ steps.check_release.outputs.stable_tag }}"
+          
+          git add CHANGELOG.md
+          git diff --staged --quiet || git commit -m "docs: update CHANGELOG.md for $STABLE_TAG [skip ci]"
+          git push origin main
+
+          # Tag the new commit
+          git tag "$STABLE_TAG" -m "chore: release $STABLE_TAG"
+          git push origin "$STABLE_TAG"
+          echo "✅ Tagged and pushed stable release: $STABLE_TAG"
+
+      - name: Automatic Fast-Forward Back-Merge to dev
+        if: steps.check_release.outputs.should_promote == 'true'
+        run: |
+          echo "🔄 Running automatic back-merge from main to dev..."
+          
+          # Fetch all branches
+          git fetch origin dev
+          git checkout dev
+          
+          # Perform fast-forward merge from main
+          git merge origin/main --ff-only
+          
+          # Push back to dev
+          git push origin dev
+          echo "✅ Dev branch successfully fast-forward merged and synced with main."

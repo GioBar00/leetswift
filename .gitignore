@@ -1,0 +1,36 @@
+# AI Tool Config
+.gemini/
+
+# OS X (macOS)
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# SwiftPM & Xcode Build Artifacts
+.build/
+build/
+DerivedData/
+.swiftpm/
+.swift-version
+*.xcodeproj/
+*.xcworkspace/
+
+# Xcode User Settings (retaining shared schemes if any)
+xcuserdata/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# VS Code & Cursor Settings
+.vscode/
+.history/
+*.code-workspace
+
+# JetBrains (CLion / AppCode)
+.idea/
+
+# Crashlogs and temp files
+*.log
+*.tmp
